@@ -30,10 +30,12 @@ curl -fsSL --retry 3 -o "$dir/$archive" "$url" || { echo "::error::Could not dow
 curl -fsSL --retry 3 -o "$dir/$archive.sha256" "$url.sha256"
 
 expected=$(cut -d ' ' -f 1 < "$dir/$archive.sha256")
+# Hashed by its bare name: for a path with backslashes, as on Windows,
+# sha256sum escapes its output line with a leading backslash.
 if command -v sha256sum > /dev/null; then
-    actual=$(sha256sum "$dir/$archive" | cut -d ' ' -f 1)
+    actual=$(cd "$dir" && sha256sum "$archive" | cut -d ' ' -f 1)
 else
-    actual=$(shasum -a 256 "$dir/$archive" | cut -d ' ' -f 1)
+    actual=$(cd "$dir" && shasum -a 256 "$archive" | cut -d ' ' -f 1)
 fi
 [ "$expected" = "$actual" ] || { echo "::error::Checksum mismatch for $archive"; exit 1; }
 
