@@ -1,4 +1,4 @@
-name: JevGate
+name: JevGate Code Review
 description: Code-review gate for pull requests. Asks TypeSafe Jev small questions about the changed code and annotates each finding.
 author: Tech Byte Frontier
 branding:
