@@ -25,6 +25,10 @@ inputs:
     description: Output format. `github` annotates the changed lines and writes a job summary.
     required: false
     default: github
+  sarif-file:
+    description: Also write the findings as SARIF to this path, for github/codeql-action/upload-sarif. Replays the check from its cached answers, so it costs nothing. Needs JevGate 0.18.0 or later.
+    required: false
+    default: ""
   cache:
     description: Keep answers in the Actions cache, so unchanged code costs nothing on the next run.
     required: false
@@ -64,4 +68,5 @@ runs:
         BASE: ${{ inputs.base || github.event.pull_request.base.sha }}
         FORMAT: ${{ inputs.format }}
         ARGS: ${{ inputs.args }}
+        SARIF_FILE: ${{ inputs.sarif-file }}
       run: bash "$GITHUB_ACTION_PATH/check.sh"

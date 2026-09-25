@@ -30,7 +30,8 @@ The action installs a release binary (checked against its SHA-256), keeps JevGat
 | `version` | `latest` | JevGate version; pin one for repeatable results |
 | `base` | the pull request's base commit | Review only files changed since this revision; empty on other events, which review the whole repository |
 | `args` | | More `jevgate check` arguments, such as `--rule default --rule security --include-tests` |
-| `format` | `github` | `github`, `agent`, `json` or `jsonl` |
+| `format` | `github` | `github`, `agent`, `json`, `jsonl`, `sarif` or `gitlab` |
+| `sarif-file` | | Also write the findings as SARIF to this path, for `upload-sarif` (JevGate 0.18.0 or later) |
 | `cache` | `true` | Keep answers in the Actions cache |
 | `working-directory` | `.` | Repository root to check |
 
@@ -40,6 +41,32 @@ The action installs a release binary (checked against its SHA-256), keeps JevGat
 |---|---|
 | `exit-code` | `0` gate passed, `1` gate failed, `2` run incomplete |
 | `report` | Path of the full JSON report (`.jevgate/latest.json`), to upload as an artifact |
+
+## Code scanning
+
+`sarif-file` also writes the findings as SARIF, replayed from the answers the check just cached, so it costs nothing. Upload it to show them in the repository's Security tab and on pull requests (needs JevGate 0.18.0 or later):
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: Tech-Byte-Frontier/jevgate-action@v1
+        with:
+          api-key: ${{ secrets.TYPESAFE_API_KEY }}
+          sarif-file: jevgate.sarif
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: jevgate.sarif
+          category: jevgate
+```
 
 ## Pull requests from forks
 
