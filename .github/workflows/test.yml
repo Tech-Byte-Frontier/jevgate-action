@@ -1,0 +1,34 @@
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # catches a JevGate release that breaks the action
+permissions:
+  contents: read
+jobs:
+  dry-run:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # A dry run needs no key or network access beyond the download, and
+      # checks install, PATH, --base and the exit code.
+      - id: jevgate
+        uses: ./
+        with:
+          args: --dry-run
+          cache: "false"
+      - name: Check the outputs
+        shell: bash
+        env:
+          CODE: ${{ steps.jevgate.outputs.exit-code }}
+        run: |
+          [ "$CODE" = 0 ] || { echo "::error::exit code $CODE"; exit 1; }
+          jevgate --version

@@ -1,0 +1,67 @@
+name: JevGate
+description: Code-review gate for pull requests. Asks TypeSafe Jev small questions about the changed code and annotates each finding.
+author: Tech Byte Frontier
+branding:
+  icon: check-circle
+  color: blue
+inputs:
+  api-key:
+    description: TypeSafe API key, usually secrets.TYPESAFE_API_KEY. Pull requests from forks don't receive secrets.
+    required: false
+    default: ""
+  version:
+    description: JevGate version to install, such as 0.17.0, or `latest`. Pin one for repeatable results.
+    required: false
+    default: latest
+  base:
+    description: Review only files changed since this revision. Defaults to the pull request's base commit; empty on other events, which review the whole repository.
+    required: false
+    default: ""
+  args:
+    description: More `jevgate check` arguments, such as `--rule default --rule security --include-tests`.
+    required: false
+    default: ""
+  format:
+    description: Output format. `github` annotates the changed lines and writes a job summary.
+    required: false
+    default: github
+  cache:
+    description: Keep answers in the Actions cache, so unchanged code costs nothing on the next run.
+    required: false
+    default: "true"
+  working-directory:
+    description: Repository root to check.
+    required: false
+    default: "."
+outputs:
+  report:
+    description: Path of the full JSON report
+    value: ${{ steps.check.outputs.report }}
+  exit-code:
+    description: 0 when the gate passed, 1 when it failed, 2 when the run was incomplete
+    value: ${{ steps.check.outputs.exit-code }}
+runs:
+  using: composite
+  steps:
+    - name: Install JevGate
+      shell: bash
+      env:
+        JEVGATE_VERSION: ${{ inputs.version }}
+      run: bash "$GITHUB_ACTION_PATH/install.sh"
+    - name: Restore answers
+      if: inputs.cache == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ inputs.working-directory }}/.jevgate/cache
+        key: jevgate-answers-${{ github.sha }}
+        restore-keys: jevgate-answers-
+    - name: Check
+      id: check
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        TYPESAFE_API_KEY: ${{ inputs.api-key }}
+        BASE: ${{ inputs.base || github.event.pull_request.base.sha }}
+        FORMAT: ${{ inputs.format }}
+        ARGS: ${{ inputs.args }}
+      run: bash "$GITHUB_ACTION_PATH/check.sh"
