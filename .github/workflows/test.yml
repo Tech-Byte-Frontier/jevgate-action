@@ -25,6 +25,7 @@ jobs:
         with:
           args: --dry-run
           cache: "false"
+          sarif-file: jevgate.sarif
       - name: Check the outputs
         shell: bash
         env:
@@ -32,3 +33,4 @@ jobs:
         run: |
           [ "$CODE" = 0 ] || { echo "::error::exit code $CODE"; exit 1; }
           jevgate --version
+          grep -q '"version": "2.1.0"' jevgate.sarif || { echo "::error::no SARIF log"; exit 1; }
