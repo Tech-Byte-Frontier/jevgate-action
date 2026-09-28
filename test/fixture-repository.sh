@@ -5,6 +5,10 @@
 set -euo pipefail
 
 dir=$1
+if [ -e "$dir" ]; then
+    echo "$dir already exists" >&2
+    exit 1
+fi
 git -c init.defaultBranch=main init -q "$dir"
 cd "$dir"
 commit() {

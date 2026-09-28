@@ -1,12 +1,13 @@
 # JevGate action
 
-Runs [JevGate](https://github.com/Tech-Byte-Frontier/jevgate), a code-review gate, on pull requests. It reviews only the files a pull request changes, annotates the changed lines with each finding, writes a job summary and fails the job when the gate fails.
+Runs [JevGate](https://github.com/Tech-Byte-Frontier/jevgate), a code-review gate, on pull requests. It reviews only the files a pull request changes, annotates the changed lines with each finding, lists them all in one pull request comment, writes a job summary and fails the job when the gate fails.
 
 ```yaml
 name: JevGate
 on: pull_request
 permissions:
   contents: read
+  pull-requests: write # the comment
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -33,6 +34,7 @@ The action installs a release binary (checked against its SHA-256), keeps JevGat
 | `args` | | More `jevgate check` arguments, such as `--rule default --rule security --include-tests` |
 | `format` | `github` | `github`, `agent`, `json`, `jsonl`, `sarif` or `gitlab` |
 | `sarif-file` | | Also write the findings as SARIF to this path, for `upload-sarif` (JevGate 0.18.0 or later) |
+| `comment` | `true` | On pull requests, list every finding in [one comment](#the-pull-request-comment), updated on each run |
 | `cache` | `true` | Keep answers in the Actions cache |
 | `working-directory` | `.` | Repository root to check |
 
@@ -43,6 +45,15 @@ The action installs a release binary (checked against its SHA-256), keeps JevGat
 | `exit-code` | `0` gate passed, `1` gate failed, `2` run incomplete |
 | `report` | Path of the full JSON report (`.jevgate/latest.json`), to upload as an artifact |
 
+## The pull request comment
+
+GitHub shows at most 10 error and 10 warning annotations per step, so on pull requests the action also lists every finding in one comment and updates it on each run. Reviews come first, then considers, then notes (collapsed), each grouped by file with a link to the line. The comment gives the gate's result and the run's API requests, input tokens and cost. When the run could not finish (exit code 2: no key, a provider error such as HTTP 402, or the request budget), it says so first, with the reasons.
+
+- It needs `pull-requests: write`. Where the token can't comment, as on pull requests from forks, the run says so in the log and the job summary and carries on.
+- Each job, and each `working-directory`, keeps its own comment; the jobs of a matrix share one. A run for an older push never replaces a newer run's comment.
+- A run too large for one comment (GitHub's limit is 65,536 characters) leaves out notes first, then the lowest-ranked considers, and says how many; the JSON report (the `report` output) keeps them all.
+- `comment: false` turns it off.
+
 ## Code scanning
 
 `sarif-file` also writes the findings as SARIF, replayed from the answers the check just cached, so it costs nothing. Upload it to show them in the repository's Security tab and on pull requests (needs JevGate 0.18.0 or later):
@@ -50,6 +61,7 @@ The action installs a release binary (checked against its SHA-256), keeps JevGat
 ```yaml
 permissions:
   contents: read
+  pull-requests: write
   security-events: write
 jobs:
   review:
