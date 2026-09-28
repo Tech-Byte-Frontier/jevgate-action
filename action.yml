@@ -18,7 +18,7 @@ inputs:
     required: false
     default: latest
   base:
-    description: Review only files changed since this revision. Defaults to the pull request's base commit; empty on other events, which review the whole repository.
+    description: Review only what changed since this revision. JevGate 0.26.0 and later ask about and report only the changed lines of changed files (add `--whole-files` to `args` for whole files); earlier versions review changed files whole. Defaults to the pull request's base commit; empty on other events, which review the whole repository.
     required: false
     default: ""
   args:
