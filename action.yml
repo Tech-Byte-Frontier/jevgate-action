@@ -60,6 +60,13 @@ runs:
       env:
         JEVGATE_VERSION: ${{ inputs.version }}
       run: bash "$GITHUB_ACTION_PATH/install.sh"
+    # Answers a pull request commits under .jevgate/cache could clear its
+    # own code; JevGate 0.28 and later never reads a cache file Git tracks,
+    # and this keeps earlier versions from reading one too.
+    - name: Leave out answers the change committed
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: rm -rf .jevgate/cache
     - name: Restore answers
       if: inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
