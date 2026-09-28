@@ -281,8 +281,30 @@ function outcome(report, all) {
     return lines.join('\n\n');
 }
 
+/** From JevGate 0.28 each review and consider records how often findings of
+ * its rule and level were right on projects JevGate was never tuned on
+ * (`precision`: `right` of `labeled`), and its message no longer ends with a
+ * probability. Below this many labels, JevGate says it is not yet measured. */
+const MIN_LABELS = 20;
+
+/** How often findings like it were right, worded as JevGate's own output
+ * words it; nothing for a note or a report before 0.28. */
+function precision(finding) {
+    const { right, labeled } = finding.precision || {};
+    if (!Number.isInteger(right) || !Number.isInteger(labeled)) {
+        return '';
+    }
+    if (labeled < MIN_LABELS) {
+        return ' Not yet measured.';
+    }
+    // Half rounded up, as JevGate rounds it.
+    const percent = Math.floor((200 * right + labeled) / (2 * labeled));
+    return ` Right ${percent}% of the time (${labeled} labels).`;
+}
+
 /** One finding: its line, linked when the commit is known, the rule, whether
- * it fails the gate, the message and the next step. */
+ * it fails the gate, the message, how often findings like it were right and
+ * the next step. */
 function item({ path, finding }, run) {
     const location = (finding.locations || []).find(
         (l) => l.path === path && l.start_line === finding.line && l.end_line > finding.line,
@@ -290,7 +312,7 @@ function item({ path, finding }, run) {
     const anchor = location ? `#L${finding.line}-L${location.end_line}` : `#L${finding.line}`;
     const line = run.commit ? `[Line ${finding.line}](${blobUrl(path, anchor, run)})` : `Line ${finding.line}`;
     const fails = finding.gate === FAILS ? ' (fails the gate)' : '';
-    return `- ${line} ${code(finding.rule)}${fails}: ${inline(finding.message)}<br>→ ${inline(finding.action)}`;
+    return `- ${line} ${code(finding.rule)}${fails}: ${inline(finding.message)}${precision(finding)}<br>→ ${inline(finding.action)}`;
 }
 
 /** A file's heading and its findings by line. */
