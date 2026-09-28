@@ -109,6 +109,30 @@ test('a run that wrote no report still says it stopped', () => {
     assert.ok(!body.includes('API request'));
 });
 
+test('from JevGate 0.26.0, findings that fail the gate and ones still being measured are marked', () => {
+    const files = {
+        'a.js': [
+            finding('review', 1, { gate: 'fails', rule: 'maintainability/function-simplification' }),
+            finding('review', 2, { gate: 'measuring' }),
+            finding('consider', 3, { gate: 'measuring' }),
+            finding('consider', 4, { gate: 'measuring' }),
+            finding('consider', 5, { gate: 'advisory' }),
+            finding('note', 6),
+        ],
+    };
+    const body = render(reportWith(files), RUN);
+    assert.ok(body.includes('`maintainability/function-simplification` (fails the gate): Finding at line 1'), body);
+    assert.ok(body.includes('`maintainability/shared-logic`: Finding at line 2'));
+    assert.equal(body.split('(fails the gate)').length, 2, 'only the finding that fails is marked');
+    assert.ok(body.includes(
+        '\n1 review finding and 2 consider findings are reported without failing the gate: their rules and levels are still being measured (`jevgate rules` shows which fail it by default).\n',
+    ));
+    const one = render(reportWith({ 'a.js': [finding('review', 2, { gate: 'measuring' })] }), RUN);
+    assert.ok(one.includes('\n1 review finding is reported without failing the gate'));
+    const older = render(report('base-run'), RUN);
+    assert.ok(!older.includes('fails the gate') && !older.includes('still being measured'));
+});
+
 test('a passing gate with nothing new says so', () => {
     const body = render(reportWith({ 'a.js': [finding('note', 3)] }, { status: 'note', gate: { passed: true, reasons: [] } }), { ...RUN, exitCode: 0 });
     assert.ok(body.includes('### JevGate: gate passed\n'));
