@@ -232,19 +232,36 @@ function cost(report) {
 const FAILS = 'fails';
 const MEASURING = 'measuring';
 
-/** The listed findings the gate reported without failing because their rule
- * and level are still being measured, counted by level; `null` when none. */
-function measuring(all) {
+/** `entries` counted by level ("1 review finding and 2 consider findings"),
+ * and whether that is one finding. */
+function byLevel(entries) {
     const counts = LEVELS.map((level) => [
         level,
-        all.filter((entry) => entry.finding.strength === level.strength && entry.finding.gate === MEASURING).length,
+        entries.filter((entry) => entry.finding.strength === level.strength).length,
     ]).filter(([, n]) => n > 0);
-    if (counts.length === 0) {
-        return null;
+    return [counts.map(([level, n]) => count(n, level.noun)).join(' and '), entries.length === 1];
+}
+
+/** Why the listed findings the gate reported without failing did not fail
+ * it: their rules and levels are still being measured, or, from JevGate
+ * 0.30, their file's language is in preview (`preview` names it), where
+ * JevGate's own rules never fail the default gate. `null` when none. */
+function measuring(all) {
+    const reported = all.filter((entry) => entry.finding.gate === MEASURING);
+    const measured = reported.filter((entry) => !entry.finding.preview);
+    const previewed = reported.filter((entry) => entry.finding.preview);
+    const reasons = [];
+    if (measured.length > 0) {
+        const [counted, one] = byLevel(measured);
+        reasons.push(`${counted} ${one ? 'is' : 'are'} reported without failing the gate: their rules and levels are still being measured (\`jevgate rules\` shows which fail it by default).`);
     }
-    const total = counts.reduce((sum, [, n]) => sum + n, 0);
-    const counted = counts.map(([level, n]) => count(n, level.noun)).join(' and ');
-    return `${counted} ${total === 1 ? 'is' : 'are'} reported without failing the gate: their rules and levels are still being measured (\`jevgate rules\` shows which fail it by default).`;
+    if (previewed.length > 0) {
+        const [counted, one] = byLevel(previewed);
+        const languages = [...new Set(previewed.map((entry) => entry.finding.preview))].sort();
+        const which = languages.length === 1 ? `${languages[0]} is` : `${languages.join(', ')} are`;
+        reasons.push(`${counted} ${one ? 'is' : 'are'} reported without failing the gate: ${which} in preview, and by default JevGate's own rules never fail it there.`);
+    }
+    return reasons.length > 0 ? reasons.join(' ') : null;
 }
 
 /** The gate's reasons as JevGate gave them, what it reported without failing,
@@ -287,19 +304,28 @@ function outcome(report, all) {
  * probability. Below this many labels, JevGate says it is not yet measured. */
 const MIN_LABELS = 20;
 
+/** The rule JevGate labels only on Bend 2 projects, which its table of
+ * precision leaves out; its findings say so. */
+const BEND_2_RULE = 'tests/laws';
+
 /** How often findings like it were right, worded as JevGate's own output
- * words it; nothing for a note or a report before 0.28. */
+ * words it: in a preview language (`preview`, from 0.30) that language's
+ * own; nothing for a note or a report before 0.28. */
 function precision(finding) {
     const { right, labeled } = finding.precision || {};
     if (!Number.isInteger(right) || !Number.isInteger(labeled)) {
         return '';
     }
+    const place = finding.preview ? ` in ${finding.preview}` : '';
     if (labeled < MIN_LABELS) {
-        return ' Not yet measured.';
+        const bend = labeled === 0 && !finding.preview && finding.rule === BEND_2_RULE;
+        return bend
+            ? ' Not yet measured: labeled only on Bend 2 projects, which the maturity table leaves out.'
+            : ` Not yet measured${place}.`;
     }
     // Half rounded up, as JevGate rounds it.
     const percent = Math.floor((200 * right + labeled) / (2 * labeled));
-    return ` Right ${percent}% of the time (${labeled} labels).`;
+    return ` Right ${percent}% of the time${place} (${labeled} labels).`;
 }
 
 /** One finding: its line, linked when the commit is known, the rule, whether

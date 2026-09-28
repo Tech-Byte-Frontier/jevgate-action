@@ -149,6 +149,26 @@ test('from JevGate 0.28, each finding says how often findings like it were right
     assert.match(body, /Finding at line 12<br>/, 'a report before 0.28 shows none');
 });
 
+test('from JevGate 0.30, a preview language\'s findings say so, in its own precision', () => {
+    const body = render(
+        reportWith({
+            'install.sh': [
+                finding('review', 3, { gate: 'measuring', preview: 'Bash', precision: { right: 34, labeled: 50 } }),
+                finding('consider', 9, { gate: 'measuring', preview: 'Bash', precision: { right: 2, labeled: 5 } }),
+            ],
+            'src/lib.rs': [finding('review', 4, { gate: 'measuring', precision: { right: 46, labeled: 85 } })],
+            'laws.bend': [finding('consider', 7, { rule: 'tests/laws', precision: { right: 0, labeled: 0 } })],
+        }),
+        RUN,
+    );
+    assert.match(body, /Finding at line 3 Right 68% of the time in Bash \(50 labels\)\.<br>/);
+    assert.match(body, /Finding at line 9 Not yet measured in Bash\.<br>/);
+    assert.match(body, /Finding at line 7 Not yet measured: labeled only on Bend 2 projects, which the maturity table leaves out\.<br>/);
+    assert.ok(body.includes(
+        '\n1 review finding is reported without failing the gate: their rules and levels are still being measured (`jevgate rules` shows which fail it by default). 1 review finding and 1 consider finding are reported without failing the gate: Bash is in preview, and by default JevGate\'s own rules never fail it there.\n',
+    ), body);
+});
+
 test('a passing gate with nothing new says so', () => {
     const body = render(reportWith({ 'a.js': [finding('note', 3)] }, { status: 'note', gate: { passed: true, reasons: [] } }), { ...RUN, exitCode: 0 });
     assert.ok(body.includes('### JevGate: gate passed\n'));

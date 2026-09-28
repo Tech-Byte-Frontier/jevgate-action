@@ -21,7 +21,7 @@ jobs:
           version: 0.25.0
 ```
 
-The action installs a release binary (checked against its SHA-256), keeps JevGate's answer cache in the Actions cache so unchanged code costs nothing, and runs `jevgate check --base <pull request base> --format github`. It needs no Rust toolchain and runs on Linux, macOS and Windows runners.
+The action installs a release binary (checked against its SHA-256), keeps JevGate's answer cache in the Actions cache so unchanged code costs nothing (and removes one the pull request commits, whose answers could clear its own code), and runs `jevgate check --base <pull request base> --format github`. It needs no Rust toolchain and runs on Linux, macOS and Windows runners.
 
 ## Inputs
 
