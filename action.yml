@@ -6,9 +6,13 @@ branding:
   color: blue
 inputs:
   api-key:
-    description: TypeSafe API key, usually secrets.TYPESAFE_API_KEY. Pull requests from forks don't receive secrets.
+    description: API key, usually secrets.TYPESAFE_API_KEY; `api-key-kind` says which service issued it. Pull requests from forks don't receive secrets.
     required: false
     default: ""
+  api-key-kind:
+    description: Which service issued `api-key`, `typesafe`, `openrouter` (OpenRouter) or `vercel` (Vercel AI Gateway). The gateways need JevGate 0.26.0 or later.
+    required: false
+    default: typesafe
   version:
     description: JevGate version to install, such as 0.17.0, or `latest`. Pin one for repeatable results.
     required: false
@@ -64,7 +68,8 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
-        TYPESAFE_API_KEY: ${{ inputs.api-key }}
+        API_KEY: ${{ inputs.api-key }}
+        API_KEY_KIND: ${{ inputs.api-key-kind }}
         BASE: ${{ inputs.base || github.event.pull_request.base.sha }}
         FORMAT: ${{ inputs.format }}
         ARGS: ${{ inputs.args }}

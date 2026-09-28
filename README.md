@@ -26,7 +26,8 @@ The action installs a release binary (checked against its SHA-256), keeps JevGat
 
 | Input | Default | Meaning |
 |---|---|---|
-| `api-key` | | TypeSafe API key. [Get one](https://console.typesafe.ai/settings/keys) and save it as a repository secret |
+| `api-key` | | TypeSafe API key ([get one](https://console.typesafe.ai/settings/keys)), or an OpenRouter or Vercel AI Gateway key with `api-key-kind`. Save it as a repository secret |
+| `api-key-kind` | `typesafe` | Which service issued `api-key`: `typesafe`, `openrouter` or `vercel` (the gateways need JevGate 0.26.0 or later) |
 | `version` | `latest` | JevGate version; pin one for repeatable results |
 | `base` | the pull request's base commit | Review only files changed since this revision; empty on other events, which review the whole repository |
 | `args` | | More `jevgate check` arguments, such as `--rule default --rule security --include-tests` |
@@ -67,6 +68,20 @@ jobs:
           sarif_file: jevgate.sarif
           category: jevgate
 ```
+
+## Keys from OpenRouter or Vercel AI Gateway
+
+OpenRouter and Vercel AI Gateway also serve Jev. With JevGate 0.26.0 or later, pass their key and say which it is; the action gives it to JevGate as `OPENROUTER_API_KEY` or `AI_GATEWAY_API_KEY`, and no other kind's key, so a key the job holds for something else is never used:
+
+```yaml
+      - uses: Tech-Byte-Frontier/jevgate-action@v1
+        with:
+          api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          api-key-kind: openrouter # or vercel
+          version: 0.26.0
+```
+
+With an older version the check stops with an error instead of running without a key.
 
 ## Pull requests from forks
 
