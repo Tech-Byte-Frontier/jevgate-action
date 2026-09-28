@@ -226,13 +226,38 @@ function cost(report) {
     return `~$${((tokens * USD_PER_MILLION_INPUT_TOKENS) / 1e6).toFixed(4)}`;
 }
 
-/** The gate's reasons as JevGate gave them, the run's size and cost, and the
- * files left undecided. */
-function outcome(report) {
+/** From JevGate 0.26.0 each finding records how the gate counted it (`gate`:
+ * `fails`, `measuring` or `advisory`); earlier reports have no such field, and
+ * the comment then marks nothing. */
+const FAILS = 'fails';
+const MEASURING = 'measuring';
+
+/** The listed findings the gate reported without failing because their rule
+ * and level are still being measured, counted by level; `null` when none. */
+function measuring(all) {
+    const counts = LEVELS.map((level) => [
+        level,
+        all.filter((entry) => entry.finding.strength === level.strength && entry.finding.gate === MEASURING).length,
+    ]).filter(([, n]) => n > 0);
+    if (counts.length === 0) {
+        return null;
+    }
+    const total = counts.reduce((sum, [, n]) => sum + n, 0);
+    const counted = counts.map(([level, n]) => count(n, level.noun)).join(' and ');
+    return `${counted} ${total === 1 ? 'is' : 'are'} reported without failing the gate: their rules and levels are still being measured (\`jevgate rules\` shows which fail it by default).`;
+}
+
+/** The gate's reasons as JevGate gave them, what it reported without failing,
+ * the run's size and cost, and the files left undecided. */
+function outcome(report, all) {
     const lines = [];
     const gate = report.gate;
     if (gate && !gate.passed && (gate.reasons || []).length > 0) {
         lines.push(`Gate failed: ${gate.reasons.map(inline).join('; ')}.`);
+    }
+    const measured = measuring(all);
+    if (measured) {
+        lines.push(measured);
     }
     const files = report.files || [];
     const usage = [
@@ -256,15 +281,16 @@ function outcome(report) {
     return lines.join('\n\n');
 }
 
-/** One finding: its line, linked when the commit is known, the rule, the
- * message and the next step. */
+/** One finding: its line, linked when the commit is known, the rule, whether
+ * it fails the gate, the message and the next step. */
 function item({ path, finding }, run) {
     const location = (finding.locations || []).find(
         (l) => l.path === path && l.start_line === finding.line && l.end_line > finding.line,
     );
     const anchor = location ? `#L${finding.line}-L${location.end_line}` : `#L${finding.line}`;
     const line = run.commit ? `[Line ${finding.line}](${blobUrl(path, anchor, run)})` : `Line ${finding.line}`;
-    return `- ${line} ${code(finding.rule)}: ${inline(finding.message)}<br>→ ${inline(finding.action)}`;
+    const fails = finding.gate === FAILS ? ' (fails the gate)' : '';
+    return `- ${line} ${code(finding.rule)}${fails}: ${inline(finding.message)}<br>→ ${inline(finding.action)}`;
 }
 
 /** A file's heading and its findings by line. */
@@ -339,7 +365,7 @@ function compose(report, run, kept, all) {
     if (report && report.status === 'no-changed-source') {
         parts.push('No supported file changed since the base revision.');
     } else if (report) {
-        parts.push(outcome(report));
+        parts.push(outcome(report, all));
         if (finished(run.exitCode) && !all.some((entry) => entry.finding.strength !== 'note')) {
             parts.push('No new review or consider findings.');
         }
