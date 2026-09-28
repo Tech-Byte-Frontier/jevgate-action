@@ -30,7 +30,7 @@ The action installs a release binary (checked against its SHA-256), keeps JevGat
 | `api-key` | | TypeSafe API key ([get one](https://console.typesafe.ai/settings/keys)), or an OpenRouter or Vercel AI Gateway key with `api-key-kind`. Save it as a repository secret |
 | `api-key-kind` | `typesafe` | Which service issued `api-key`: `typesafe`, `openrouter` or `vercel` (the gateways need JevGate 0.26.0 or later) |
 | `version` | `latest` | JevGate version; pin one for repeatable results |
-| `base` | the pull request's base commit | Review only files changed since this revision; empty on other events, which review the whole repository |
+| `base` | the pull request's base commit | Review only what changed since this revision: from JevGate 0.26.0 the changed lines of changed files (`--whole-files` in `args` for whole files), before it changed files whole; empty on other events, which review the whole repository |
 | `args` | | More `jevgate check` arguments, such as `--rule default --rule security --include-tests` |
 | `format` | `github` | `github`, `agent`, `json`, `jsonl`, `sarif` or `gitlab` |
 | `sarif-file` | | Also write the findings as SARIF to this path, for `upload-sarif` (JevGate 0.18.0 or later) |
