@@ -4,11 +4,16 @@ set -uo pipefail
 
 report=.jevgate/latest.json
 
+# A path Node can open: on Windows, Git Bash's $PWD (/d/a/...) is not one.
+native() {
+    if command -v cygpath > /dev/null; then cygpath -m "$1"; else echo "$1"; fi
+}
+
 # Write the step's outputs, then exit with CODE.
 finish() {
     {
         echo "exit-code=$1"
-        echo "report=$PWD/$report"
+        echo "report=$(native "$PWD")/$report"
     } >> "$GITHUB_OUTPUT"
     exit "$1"
 }
