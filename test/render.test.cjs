@@ -133,6 +133,22 @@ test('from JevGate 0.26.0, findings that fail the gate and ones still being meas
     assert.ok(!older.includes('fails the gate') && !older.includes('still being measured'));
 });
 
+test('from JevGate 0.28, each finding says how often findings like it were right', () => {
+    const body = render(
+        reportWith({
+            'src/lib.rs': [
+                finding('review', 3, { precision: { right: 20, labeled: 23 } }),
+                finding('consider', 9, { precision: { right: 2, labeled: 5 } }),
+                finding('consider', 12),
+            ],
+        }),
+        RUN,
+    );
+    assert.match(body, /Finding at line 3 Right 87% of the time \(23 labels\)\.<br>/);
+    assert.match(body, /Finding at line 9 Not yet measured\.<br>/);
+    assert.match(body, /Finding at line 12<br>/, 'a report before 0.28 shows none');
+});
+
 test('a passing gate with nothing new says so', () => {
     const body = render(reportWith({ 'a.js': [finding('note', 3)] }, { status: 'note', gate: { passed: true, reasons: [] } }), { ...RUN, exitCode: 0 });
     assert.ok(body.includes('### JevGate: gate passed\n'));
