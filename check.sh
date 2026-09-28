@@ -3,6 +3,7 @@
 set -uo pipefail
 
 report=.jevgate/latest.json
+version=$(jevgate --version 2> /dev/null)
 
 # A path Node can open: on Windows, Git Bash's $PWD (/d/a/...) is not one.
 native() {
@@ -17,6 +18,33 @@ finish() {
     } >> "$GITHUB_OUTPUT"
     exit "$1"
 }
+
+# The key goes in the variable JevGate reads for its kind.
+case "$API_KEY_KIND" in
+    typesafe) key_variable=TYPESAFE_API_KEY ;;
+    openrouter) key_variable=OPENROUTER_API_KEY ;;
+    vercel) key_variable=AI_GATEWAY_API_KEY ;;
+    *)
+        echo "::error::api-key-kind is typesafe, openrouter or vercel, not $API_KEY_KIND."
+        finish 2
+        ;;
+esac
+if [ "$API_KEY_KIND" != typesafe ]; then
+    # Older versions read only TYPESAFE_API_KEY and would say no key is configured.
+    IFS=. read -r major minor _ <<< "${version##* }"
+    if [ "$major" = 0 ] && [ "${minor:-0}" -lt 26 ] 2> /dev/null; then
+        echo "::error::api-key-kind: $API_KEY_KIND needs JevGate 0.26.0 or later; this is ${version##* }."
+        finish 2
+    fi
+fi
+# Only a key that was given, so an empty input leaves one set in the job's env.
+if [ -n "$API_KEY" ]; then
+    export "$key_variable=$API_KEY"
+fi
+# And only that kind's: a key the job holds for another service is never spent.
+for variable in TYPESAFE_API_KEY OPENROUTER_API_KEY AI_GATEWAY_API_KEY; do
+    if [ "$variable" != "$key_variable" ]; then unset "$variable"; fi
+done
 
 command=(jevgate check)
 if [ -n "$BASE" ]; then
@@ -42,7 +70,7 @@ if [ -n "${SARIF_FILE:-}" ]; then
     fi
 fi
 
-if [ "$code" = 2 ] && [ -z "${TYPESAFE_API_KEY:-}" ]; then
-    echo "::error::No TypeSafe API key. Pass api-key: \${{ secrets.TYPESAFE_API_KEY }}. Pull requests from forks don't receive secrets; skip the job for them."
+if [ "$code" = 2 ] && [ -z "${!key_variable:-}" ]; then
+    echo "::error::No API key. Pass api-key: \${{ secrets.$key_variable }}. Pull requests from forks don't receive secrets; skip the job for them."
 fi
 finish "$code"
