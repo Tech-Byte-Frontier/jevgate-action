@@ -33,6 +33,10 @@ inputs:
     description: Also write the findings as SARIF to this path, for github/codeql-action/upload-sarif. Replays the check from its cached answers, so it costs nothing. Needs JevGate 0.18.0 or later.
     required: false
     default: ""
+  comment:
+    description: "On pull requests, list every finding in one comment, updated in place on each run. Needs `pull-requests: write`; without it, as on pull requests from forks, the run says so and carries on."
+    required: false
+    default: "true"
   cache:
     description: Keep answers in the Actions cache, so unchanged code costs nothing on the next run.
     required: false
@@ -75,3 +79,20 @@ runs:
         ARGS: ${{ inputs.args }}
         SARIF_FILE: ${{ inputs.sarif-file }}
       run: bash "$GITHUB_ACTION_PATH/check.sh"
+    # After a failed gate or an incomplete run too; not when the check never started.
+    - name: Comment
+      if: ${{ !cancelled() && inputs.comment == 'true' && steps.check.outputs.exit-code != '' }}
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        JEVGATE_ACTION_PATH: ${{ github.action_path }}
+        JEVGATE_EXIT_CODE: ${{ steps.check.outputs.exit-code }}
+        JEVGATE_REPORT: ${{ steps.check.outputs.comment-report }}
+        JEVGATE_COMMIT: ${{ steps.check.outputs.commit }}
+        JEVGATE_PREFIX: ${{ steps.check.outputs.prefix }}
+        JEVGATE_VERSION: ${{ steps.check.outputs.version }}
+        JEVGATE_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      with:
+        retries: 3
+        script: |
+          const comment = require(require('node:path').join(process.env.JEVGATE_ACTION_PATH, 'comment.cjs'));
+          await comment.run({ github, context, core });

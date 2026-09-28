@@ -4,6 +4,8 @@ set -uo pipefail
 
 report=.jevgate/latest.json
 version=$(jevgate --version 2> /dev/null)
+# This run's report for the comment step, empty when the check wrote none.
+comment_report=
 
 # A path Node can open: on Windows, Git Bash's $PWD (/d/a/...) is not one.
 native() {
@@ -15,6 +17,10 @@ finish() {
     {
         echo "exit-code=$1"
         echo "report=$(native "$PWD")/$report"
+        echo "comment-report=$comment_report"
+        echo "commit=$(git rev-parse HEAD 2> /dev/null)"
+        echo "prefix=$(git rev-parse --show-prefix 2> /dev/null)"
+        echo "version=$version"
     } >> "$GITHUB_OUTPUT"
     exit "$1"
 }
@@ -58,8 +64,17 @@ fi
 read -r -a extra <<< "$ARGS"
 command+=(${extra[@]+"${extra[@]}"})
 
+# Each report JevGate writes is a new generation, so its checksum changes;
+# one left from an earlier check is not this run's.
+before=
+if [ -f "$report" ]; then before=$(cksum < "$report"); fi
 "${command[@]}" --format "$FORMAT"
 code=$?
+if [ -f "$report" ] && [ "$(cksum < "$report")" != "$before" ]; then
+    # Saved before the SARIF replay publishes its own, which sent no request.
+    saved="$RUNNER_TEMP/jevgate-report-$$.json"
+    cp "$report" "$saved" && comment_report=$saved
+fi
 
 # The same check again from the answers just cached: no request is sent.
 if [ -n "${SARIF_FILE:-}" ]; then
